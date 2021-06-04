@@ -1,0 +1,198 @@
+       IDENTIFICATION DIVISION.                                                 
+       PROGRAM-ID. ZMA3VPRB.                                                    
+       AUTHOR. JEFFREY CLENDENING                                            
+      ******************************************************************
+      *REMARKS.  program creates a file used by Ken Gurne              *
+      *          the output file contains people serviced by cpac      *
+      ******************************************************************
+      *         Programmer: Jeffrey Clendening                         *
+      *            Created: 10/16/01                                   *
+      *              Cycle: As Required                                *
+      *               User: Ken Gurne                                  *
+      *         ECP Number: 00-21                                      *
+      ******************************************************************
+      * MODIFICATION HISTORY:                                          *
+      *                                                                *
+      *           MODIFIED: XXXXXXXX                                   *
+      *    EFFECTIVE CYCLE: XX XXX XX  XXXX XXX XXXXX                  *
+      *         PROGRAMMER: XXXXXXXXX XXXXXXXXXXXXXXX                  *
+      *       MODIFICATION: XXXXXXXXXXXXXXXXXXXXXXXXX                  *
+      *                                                                *
+      ******************************************************************
+      /                                                                         
+       ENVIRONMENT DIVISION.                                                    
+       CONFIGURATION SECTION.                                                   
+       SOURCE-COMPUTER. HP-9000.                                               
+       OBJECT-COMPUTER. HP-9000.                                               
+       INPUT-OUTPUT SECTION.                                                    
+       FILE-CONTROL.                                                            
+           SELECT INPUT-FILE  ASSIGN TO ZMA3VA3I                             
+                  FILE STATUS IS INPUT-STATUS
+                  ORGANIZATION IS LINE SEQUENTIAL. 
+
+           SELECT OUTPUT-FILE ASSIGN  TO ZMA3VB1O                        
+                  FILE STATUS IS OUTPUT-STATUS
+                  ORGANIZATION IS LINE SEQUENTIAL. 
+
+      *
+       DATA DIVISION.                                                           
+       FILE SECTION.                                                            
+       FD  INPUT-FILE                                                          
+           RECORDING MODE IS F                                                  
+           BLOCK CONTAINS 0 RECORDS                                             
+           LABEL RECORDS ARE STANDARD.                                          
+       01  INPUT-RECORD                   PIC X(14).                       
+      *
+       FD  OUTPUT-FILE                                                      
+           RECORDING MODE IS F                                                  
+           BLOCK CONTAINS 0 RECORDS                                             
+           LABEL RECORDS ARE STANDARD.                                          
+       01  OUTPUT-RECORD                  PIC X(21).
+
+
+
+       WORKING-STORAGE SECTION.                                                 
+
+       01  SYS-DATE1                  PIC X(021).
+ 
+       01  MODULE-NAME                    PIC X(08) VALUE
+                                           "XXXXXXXX".
+       01 COUNTERS.
+          03 READ-CNT                 PIC S9(6) COMP-3 VALUE ZEROS. 
+          03 MATCHED-CNT              PIC S9(6) COMP-3 VALUE ZEROS.
+          03 WRITE-CNT                PIC S9(6) COMP-3 VALUE ZEROS.
+          03 STATUS-OUT-CNT           PIC S9(6) COMP-3 VALUE ZEROS.
+
+       01 INPUT-STATUS                   PIC X(02)  VALUE SPACES.
+          88 INPUT-OK                      VALUE   '00'.
+          88 INPUT-EOF                     VALUE   '10'.
+       01 OUTPUT-STATUS                  PIC X(02)  VALUE SPACES.
+          88 OUTPUT-OK                      VALUE   '00'.
+          88 OUTPUT-EOF                     VALUE   '10'.
+
+       01 HOLD-REC.
+         05 HOLD-CCPO-ID             PIC X(2) VALUE SPACES.
+         05 HOLD-FILLER              PIC X(2) VALUE SPACES.
+         05 HOLD-AGY-SUB             PIC X(4) VALUE SPACES.
+         05 HOLD-PAR-AGY-SUB         PIC X(4) VALUE SPACES.
+         05 HOLD-EMP-TYP             PIC X(1) VALUE SPACES.
+         05 HOLD-FNC-DES             PIC X(1) VALUE SPACES.            
+
+       01 HOLD-CNT.
+         05 HOLD-CCPO-ID-CNT         PIC 9(4) VALUE ZEROES.
+         05 HOLD-TOTAL-CNT           PIC 9(6) VALUE ZEROES.
+            
+
+       01 OUTPUT-RECORD-1.
+         03 OUTPUT-REC.
+           05 CCPO-ID-O                PIC X(2) VALUE SPACES.
+           05 FILLER-1-O               PIC X(2) VALUE SPACES.
+           05 AGY-SUB-O                PIC X(4) VALUE SPACES.
+           05 PAR-AGY-SUB-O            PIC X(4) VALUE SPACES.
+           05 EMP-TYP-O                PIC X    VALUE SPACES.
+           05 FNC-DES-O                PIC X    VALUE SPACES.
+         03 FILLER-2-O                 PIC X    VALUE SPACES.
+         03 CCPO-ID-CNT                PIC Z,ZZ9.
+          
+       01 OUTPUT-REC-2.
+         05 FILLER                  PIC X(3) VALUE SPACES.
+         05 FILLER                  PIC X(11) VALUE 
+            'GRAND TOTAL'. 
+         05 FILLER                  PIC X(1)  VALUE SPACES.
+         05 TOTAL-CNT               PIC 9(6)  VALUE ZEROES.
+       
+       01 SWITCHES.
+         03 EOF-IND.
+           05 EOF-INPUT               PIC X(1)   VALUE 'N'.
+         03 FIRST-REC                 PIC X      VALUE 'Y'.
+           
+
+       PROCEDURE DIVISION.
+       BEGIN.
+       1000-MAIN-RTN.                                                           
+           PERFORM OPEN-ROUTINE.
+           PERFORM READ-ROUTINE THRU READ-ROUTINE-EXIT  
+                UNTIL EOF-INPUT = 'Y'.
+           PERFORM WRITE-RECORDS-TOTAL.
+           DISPLAY 'RECORDS MATCHED: ' MATCHED-CNT
+           PERFORM CLOSE-ROUTINE. 
+
+       OPEN-ROUTINE.
+           OPEN INPUT INPUT-FILE.
+           MOVE 'N' TO EOF-INPUT.
+           IF NOT INPUT-OK
+                DISPLAY 'CPMF-FILE OPEN FAILED:  ' INPUT-STATUS
+                STOP RUN.
+
+           OPEN OUTPUT OUTPUT-FILE.
+           IF NOT OUTPUT-OK
+                DISPLAY 'OUTPUT FAILED: ' OUTPUT-STATUS 
+                STOP RUN.
+
+       
+       READ-ROUTINE.
+           READ INPUT-FILE INTO INPUT-RECORD
+               AT END MOVE '10' TO INPUT-STATUS
+                  MOVE HOLD-REC TO OUTPUT-REC
+                  MOVE HOLD-CCPO-ID-CNT TO CCPO-ID-CNT
+                  WRITE OUTPUT-RECORD FROM OUTPUT-RECORD-1
+                  MOVE 'Y' TO EOF-INPUT
+                  DISPLAY 'END OF INPUT-FILE: ' INPUT-STATUS
+                  GO TO READ-ROUTINE-EXIT.
+
+           IF INPUT-OK OR INPUT-EOF
+              NEXT SENTENCE
+           ELSE
+             DISPLAY 'INPUT READ FAILED: ' INPUT-STATUS
+             PERFORM CLOSE-ROUTINE
+           END-IF.             
+
+           IF FIRST-REC = 'Y' 
+               MOVE INPUT-RECORD TO HOLD-REC
+               MOVE 'N' TO FIRST-REC.
+           
+
+           IF (INPUT-RECORD = HOLD-REC)
+              ADD 1 TO MATCHED-CNT
+              ADD 1 TO HOLD-CCPO-ID-CNT
+              ADD 1 TO HOLD-TOTAL-CNT
+           ELSE
+              MOVE HOLD-CCPO-ID TO CCPO-ID-O
+              MOVE HOLD-FILLER TO FILLER-1-O
+              MOVE HOLD-AGY-SUB TO AGY-SUB-O
+              MOVE HOLD-PAR-AGY-SUB TO PAR-AGY-SUB-O
+              MOVE HOLD-EMP-TYP TO EMP-TYP-O
+              MOVE HOLD-FNC-DES TO FNC-DES-O
+              MOVE SPACES TO FILLER-2-O
+              MOVE HOLD-CCPO-ID-CNT TO CCPO-ID-CNT
+              MOVE ZEROES TO HOLD-CCPO-ID-CNT
+              WRITE OUTPUT-RECORD FROM OUTPUT-RECORD-1
+              MOVE INPUT-RECORD TO HOLD-REC
+              ADD 1 TO HOLD-CCPO-ID-CNT
+              ADD 1 TO MATCHED-CNT
+              ADD 1 TO HOLD-TOTAL-CNT
+              IF NOT OUTPUT-OK 
+                 DISPLAY 'OUTPUT WRITE FAILED: ' OUTPUT-STATUS
+                 PERFORM CLOSE-ROUTINE
+              ELSE
+                 ADD 1 TO WRITE-CNT 
+              END-IF
+           END-IF. 
+       READ-ROUTINE-EXIT.
+                     EXIT.
+                                                                                                                                                                            
+       WRITE-RECORDS-TOTAL.
+            MOVE HOLD-TOTAL-CNT TO TOTAL-CNT.
+            WRITE OUTPUT-RECORD FROM OUTPUT-REC-2.
+            IF NOT OUTPUT-OK 
+                 DISPLAY 'OUTPUT WRITE FAILED: ' OUTPUT-STATUS
+                 PERFORM CLOSE-ROUTINE
+            ELSE
+                 ADD 1 TO WRITE-CNT 
+            END-IF.
+      
+      
+       CLOSE-ROUTINE.
+              CLOSE  INPUT-FILE 
+                     OUTPUT-FILE.
+              STOP RUN.

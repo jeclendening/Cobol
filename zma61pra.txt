@@ -1,0 +1,191 @@
+       IDENTIFICATION DIVISION.                                                 
+       PROGRAM-ID. ZMA61PRA.                                                       
+       AUTHOR. JEFFREY CLENDENING                                            
+      ******************************************************************
+      *REMARKS:                                                        *
+      *        CREATE AN INPUT FILE FOR ZMA61PRB WHERE PAY-PLN = GS    *
+      *        & OCC-SER BETWEEN 5 & 15, THE VALUE "50" GETS MOVE      *
+      *        TO CAR-PRG.                                             *
+      ******************************************************************
+      * MODIFICATION HISTORY:                                          *
+      *                                                                *
+      *           MODIFIED: XXXXXXXX                                   *
+      *    EFFECTIVE CYCLE: XX XXX XX  XXXX XXX XXXXX                  *
+      *         PROGRAMMER: XXXXXXXXX XXXXXXXXXXXXXXX                  *
+      *       MODIFICATION: XXXXXXXXXXXXXXXXXXXXXXXXX                  *
+      *                                                                *
+      ******************************************************************
+      /                                                                         
+       ENVIRONMENT DIVISION.                                                    
+       CONFIGURATION SECTION.                                                   
+       SOURCE-COMPUTER. HP-9000.                                               
+       OBJECT-COMPUTER. HP-9000.                                               
+       INPUT-OUTPUT SECTION.                                                    
+       FILE-CONTROL.                                                            
+           SELECT CPMF-FILE  ASSIGN TO ZMD57A1I                             
+                  FILE STATUS IS INPUT-STATUS
+                  ORGANIZATION IS LINE SEQUENTIAL. 
+
+           SELECT OUTPUT-FILE ASSIGN TO ZMD57A1O                            
+                  FILE STATUS IS OUTPUT-STATUS
+                  ORGANIZATION IS LINE SEQUENTIAL. 
+      *
+       DATA DIVISION.                                                           
+       FILE SECTION.
+
+       FD  CPMF-FILE                                                           
+           RECORDING MODE IS F                                                  
+           BLOCK CONTAINS 0 RECORDS                                             
+           LABEL RECORDS ARE STANDARD.                                          
+       01  CPMF-REC                  PIC X(1000).                      
+      *
+       FD  OUTPUT-FILE                                                      
+           RECORDING MODE IS F                                                  
+           BLOCK CONTAINS 0 RECORDS                                             
+           LABEL RECORDS ARE STANDARD.                                          
+       01  OUTPUT-REC                PIC X(1000).
+      *
+       WORKING-STORAGE SECTION.                                                 
+
+       01  SYS-DATE1                  PIC X(021).
+ 
+       01  MODULE-NAME                    PIC X(08) VALUE
+                                           "XXXXXXXX".
+       01 COUNTERS.
+          03 READ-CNT                 PIC S9(6) COMP-3 VALUE ZEROS. 
+          03 MATCHED-CNT              PIC S9(6) COMP-3 VALUE ZEROS.
+          03 WRITE-CNT                PIC S9(6) COMP-3 VALUE ZEROS.
+          03 STATUS-OUT-CNT           PIC S9(6) COMP-3 VALUE ZEROS.
+
+       01 INPUT-STATUS                  PIC X(02)  VALUE SPACES.
+          88 INPUT-OK                      VALUE   '00'.
+          88 INPUT-EOF                     VALUE   '10'.
+       01 OUTPUT-STATUS           PIC X(02)  VALUE SPACES.
+          88 OUTPUT-OK                  VALUE   '00'.
+          88 OUTPUT-EOF                 VALUE   '10'.
+
+       01 CPMF-HOLD.
+         03 FILLER-1-HOLD             PIC X(67).
+         03 PAY-PLN-HOLD              PIC X(2).
+         03 OCC-SER-HOLD              PIC X(4).
+         03 FILLER-2-HOLD             PIC X(2).
+         03 PAY-GRD-HOLD              PIC X(2).
+         03 FILLER-3-HOLD             PIC X(31).
+         03 CAR-PGM-HOLD              PIC X(2).
+         03 FILLER-4-HOLD             PIC X(890).
+
+       01 EOF-IND.   
+          05 EOF-INPUT                PIC X(1) VALUE 'N'.
+
+       01 CPMF-RECORD-IN.
+          03 FILLER-1-IN              PIC X(067) VALUE SPACES.
+          03 CPMF-PAY-PLN-IN          PIC X(002) VALUE SPACES.
+          03 CPMF-OCC-SER-IN          PIC X(004) VALUE SPACES.
+          03 FILLER-2-IN              PIC X(002) VALUE SPACES.
+          03 CPMF-PAY-GRD-IN          PIC X(002) VALUE SPACES.
+          03 FILLER-3-IN              PIC X(031) VALUE SPACES.
+          03 CPMF-CAR-PGM-IN          PIC X(002) VALUE SPACES.
+          03 FILLER-4-IN              PIC X(890) VALUE SPACES.
+
+       01 CPMF-RECORD-OUT.
+          03 FILLER-1-OUT               PIC X(067) VALUE SPACES.
+          03 CPMF-PAY-PLN-OUT           PIC X(002) VALUE SPACES.
+          03 CPMF-OCC-SER-OUT           PIC X(004) VALUE SPACES.
+          03 FILLER-2-OUT               PIC X(002) VALUE SPACES.
+          03 CPMF-PAY-GRD-OUT           PIC X(002) VALUE SPACES.
+          03 FILLER-3-OUT               PIC X(031) VALUE SPACES.
+          03 CPMF-CAR-PGM-OUT           PIC X(002) VALUE SPACES.
+          03 FILLER-4-OUT               PIC X(890) VALUE SPACES.
+
+       COPY CPMF9504.
+      
+       PROCEDURE DIVISION.
+       BEGIN.
+      *     DISPLAY SFNAME UPON ENVIRONMENT-NAME.
+      *     ACCEPT  SFNAME FROM ENVIRONMENT-VALUE.
+
+       1000-MAIN-RTN.                                                           
+           PERFORM OPEN-ROUTINE THRU OPEN-ROUTINE-EXIT.
+           PERFORM READ-ROUTINE-1 THRU READ-ROUTINE-1-EXIT.  
+           PERFORM MATCH-ROUTINE THRU MATCH-ROUTINE-EXIT 
+                UNTIL EOF-INPUT = 'Y'.
+           PERFORM CLOSE-ROUTINE THRU CLOSE-ROUTINE-EXIT.                                
+
+       OPEN-ROUTINE.
+           OPEN INPUT CPMF-FILE.
+           MOVE 'N' TO EOF-INPUT.
+           IF NOT INPUT-OK
+                DISPLAY 'CPMF-FILE OPEN FAILED:  ' INPUT-STATUS
+                STOP RUN.
+        
+           OPEN OUTPUT OUTPUT-FILE.
+           IF NOT OUTPUT-OK
+                DISPLAY 'OUTPUT FAILED: ' OUTPUT-STATUS 
+                STOP RUN.
+
+       OPEN-ROUTINE-EXIT.
+                      EXIT.
+       
+       READ-ROUTINE-1.
+           READ CPMF-FILE INTO CPMF-RECORD-IN
+               AT END MOVE '10' TO INPUT-STATUS
+                   MOVE 'Y' TO EOF-INPUT
+               DISPLAY 'END OF CPMF-FILE: ' INPUT-STATUS 
+                  PERFORM CLOSE-ROUTINE.
+           IF INPUT-OK OR INPUT-EOF
+              NEXT SENTENCE
+           ELSE
+             DISPLAY 'INPUT READ FAILED: ' INPUT-STATUS
+             PERFORM CLOSE-ROUTINE
+           END-IF.             
+       READ-ROUTINE-1-EXIT.
+                     EXIT.
+
+
+       MATCH-ROUTINE. 
+                MOVE FILLER-1-IN TO FILLER-1-HOLD.
+                MOVE CPMF-PAY-PLN-IN TO PAY-PLN-HOLD.
+                MOVE CPMF-OCC-SER-IN TO OCC-SER-HOLD.
+                MOVE FILLER-2-IN TO FILLER-2-HOLD.
+                MOVE CPMF-PAY-GRD-IN TO PAY-GRD-HOLD.
+                MOVE FILLER-3-IN TO FILLER-3-HOLD.
+                MOVE CPMF-CAR-PGM-IN TO CAR-PGM-HOLD.
+                MOVE FILLER-4-IN TO FILLER-4-HOLD.
+                IF PAY-PLN-HOLD =  'GS' 
+                    IF OCC-SER-HOLD = '0205' 
+                     IF  PAY-GRD-HOLD > 4 OR
+                         PAY-GRD-HOLD < 16 
+                       MOVE 50 TO CAR-PGM-HOLD
+                ELSE
+                   MOVE CPMF-CAR-PGM-IN TO CAR-PGM-HOLD
+                END-IF.
+                PERFORM WRITE-RECORDS THRU WRITE-RECORDS-EXIT.
+                PERFORM READ-ROUTINE-1 THRU READ-ROUTINE-1-EXIT.
+       MATCH-ROUTINE-EXIT.
+                      EXIT.
+      
+       WRITE-RECORDS.
+            MOVE FILLER-1-HOLD TO FILLER-1-OUT.
+            MOVE PAY-PLN-HOLD TO CPMF-PAY-PLN-OUT.
+            MOVE OCC-SER-HOLD TO CPMF-OCC-SER-OUT. 
+            MOVE FILLER-2-HOLD TO FILLER-2-OUT. 
+            MOVE PAY-GRD-HOLD TO CPMF-PAY-GRD-OUT.
+            MOVE FILLER-3-HOLD TO FILLER-3-OUT.
+            MOVE CAR-PGM-HOLD TO CPMF-CAR-PGM-OUT.
+            MOVE FILLER-4-HOLD TO FILLER-4-OUT.                      
+            WRITE OUTPUT-REC FROM CPMF-RECORD-OUT.
+            IF NOT OUTPUT-OK 
+                 DISPLAY 'OUTPUT WRITE FAILED: ' OUTPUT-STATUS
+                 PERFORM CLOSE-ROUTINE
+            ELSE
+                 ADD 1 TO WRITE-CNT 
+            END-IF.
+       WRITE-RECORDS-EXIT.
+                      EXIT.
+      
+       CLOSE-ROUTINE.
+              CLOSE  CPMF-FILE 
+                     OUTPUT-FILE.
+              STOP RUN.
+       CLOSE-ROUTINE-EXIT.
+                        EXIT.                          

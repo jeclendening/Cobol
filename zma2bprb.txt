@@ -1,0 +1,378 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ZMA2BPRB.
+       AUTHOR. JEFFREY CLENDENING. 
+       INSTALLATION. HQ ACPERS.
+       DATE-COMPILED.
+       SECURITY. UNCLASSIFIED.
+      ****************************************************************
+      **** MODIFICATION HISTORY                                      *
+      **                                                             *
+      **           CREATED: 08/03/2000                               *
+      **   EFFECTIVE CYCLE: ME SEPT 00                               *
+      **        PROGRAMMER: JEFFREY CLENDENING                       *
+      **      MODIFICATION: N/A                                      *
+      **               ECP: 99-36                                    *
+      ****************************************************************
+      **      Essential personnel in key positions.                  *
+      **                                                             *
+      ****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-3090.                             
+       OBJECT-COMPUTER. IBM-3090.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+	   SELECT CPMF-FILE                 ASSIGN TO ZMD57A1I
+		   ORGANIZATION IS LINE SEQUENTIAL.
+           SELECT CONTROL-FILE              ASSIGN TO ZMA01A7I
+		   ORGANIZATION IS LINE SEQUENTIAL.
+           SELECT PRINT-FILE                ASSIGN TO ZMA2BB1O
+		   ORGANIZATION IS LINE SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+
+       FD  CPMF-FILE
+	    RECORDING MODE IS F
+	    BLOCK CONTAINS 0 RECORDS
+	    LABEL RECORDS ARE STANTARD.
+       01  CPMF-RECORDS                PIC X(1000).
+
+       FD PRINT-FILE 
+           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
+	   LABEL RECORDS ARE STANDARD.
+       01 PRINT-RECORD                 PIC X(132).
+      
+       COPY FDCNTROL.
+      /
+       WORKING-STORAGE SECTION.
+	   
+       01  SYS-DATE1                   PIC X(21).  
+       01  MODULE-NAME                 PIC X(8) VALUE
+				      "ZMA2BPRB".
+
+       01 COUNTERS-AND-SWITCHES.
+	  02 CPMF-EOF                 PIC 9 VALUE ZEROS.
+	  02 EOF-SW                   PIC X VALUE 'N'.
+	  02 LINE-CNT                 PIC 99 VALUE ZEROS.
+	  02 PAGE-CTR                 PIC 9(4) VALUE ZEROS.
+	  02 MOB-EMP-CTR              PIC 9(6) VALUE ZEROS.
+	  02 MOB-POS-CTR              PIC 9(6) VALUE ZEROS.
+	  02 CPMF-CNT-AR              PIC 9(7) VALUE ZEROES.
+	  02 CPMF-CNT-AR-2            PIC 9(7) VALUE ZEROES.
+	  02 CPMF-CNT                 PIC 9(7) VALUE ZEROES.
+	  02 CPMF-CNT-2               PIC 9(7) VALUE ZEROES.
+	  02 CMD-CNT                  PIC 9(4) VALUE ZEROES.
+	  02 TOT-CNT                  PIC 9(6) VALUE ZEROES.
+	  02 TOTAL-CNT                PIC 9(4) VALUE ZEROES.
+
+       01 HOLD-CPMF.
+	  02 HOLD-AGY-CMD.
+	    03 HOLD-AGY              PIC X(2).
+	    03 HOLD-CMD              PIC X(2).
+	  02 HOLD-MOB-EMP           PIC X(1) VALUE SPACES.
+	  02 HOLD-MOB-POS           PIC X(1) VALUE SPACES.
+
+       01 TEST-CMD                  PIC X(2).
+
+       01 BLANK-LINE                  PIC X(132) VALUE SPACES. 
+
+       01 SYS-DATE.
+	  05 YY-SD                  PIC 9(2) VALUE ZEROES.
+	  05 MM-SD                  PIC 9(2) VALUE ZEROES.
+	  05 DD-SD                  PIC 9(2) VALUE ZEROES.
+
+
+       01 FORMAT-SYS-DATE.
+	  05 MM-FD                   PIC XX VALUE SPACES.
+	  05 FILLER                  PIC X VALUE '/'.
+	  05 DD-FD                   PIC XX VALUE SPACES.
+	  05 FILLER                  PIC X VALUE '/'.
+	  05 YYYY-FD                 PIC X(4) VALUE SPACES.
+
+
+       01 HEADER-1.
+	  02 FILLER                   PIC X(17) VALUE
+	     '  RCS: CSGPA1103 '.
+	  02 FILLER                   PIC X(33) VALUE SPACES.
+	  02 FILLER                   PIC X(35) VALUE
+	      '    * * * UNCLASSIFIED * * *       '.
+          02 FILLER                   PIC X(24) VALUE SPACES.
+	  02 FILLER                   PIC X(12) VALUE 'PCN: ZMA-2BB'.
+	  02 FILLER                   PIC X(7)  VALUE ' PAGE: '.
+	  02 PAGE-NUM                 PIC 9(4).
+	  02 FILLER                   PIC X     VALUE SPACE.
+       
+       01 HEADER-2.
+          02 FILLER                   PIC X(9) VALUE '  AS OF: '.
+	  02 AS-OF-DATE               PIC X(11).
+	  02 FILLER                   PIC X(35) VALUE SPACES.
+	  02 FILLER                   PIC X(22) VALUE 
+ 	     'DEPARTMENT OF THE ARMY'.
+          02 FILLER                   PIC X(30) VALUE SPACES.
+	  02 FILLER                   PIC X(10) VALUE 'RUN DATE: '.
+	  02 FILLER                   PIC X(04) VALUE SPACES.
+          02 SYSTEM-DATE              PIC X(11).
+
+       01 HEADER-3.
+	  02 FILLER                   PIC X(51) VALUE SPACES.
+	  02 FILLER                   PIC X(31) VALUE
+	     '*     KEY CIVILIANS IN        *'.
+          02 FILLER                   PIC X(52) VALUE SPACES.
+
+       01 HEADER-4.
+          02 FILLER                   PIC X(50) VALUE SPACES.
+	  02 FILLER                   PIC X(32) VALUE
+	     '***** KEY POSITIONS ********** '.
+          02 FILLER                   PIC X(50) VALUE SPACES.
+
+       01 HEADER-5.
+	  02 FILLER                   PIC X(12) VALUE
+	     'COMMAND     '.
+          02 FILLER                   PIC X(21) VALUE
+	     'MOB-EMP       MOB-POS'.
+          02 FILLER                   PIC X(99) VALUE SPACES.
+
+       01 DETAIL-LINE.
+          02 FILLER                   PIC X(1)   VALUE SPACES.
+	  02 D-CMD                    PIC X(2)   VALUE SPACES.
+	  02 FILLER                   PIC X(9)   VALUE SPACES.
+	  02 FILLER                   PIC X(3)   VALUE SPACES.
+	  02 D-MOB-EMP                PIC X(1)   VALUE SPACES.
+	  02 FILLER                   PIC X(13)   VALUE SPACES.
+	  02 D-MOB-POS                PIC X(1)   VALUE SPACES.
+	  02 FILLER                   PIC X(20)   VALUE SPACES.
+	  02 FILLER                   PIC X(2)   VALUE SPACES.
+	  02 FILLER                   PIC X(80) VALUE SPACES.
+	   
+       01 TOTAL-1.
+	  02 FILLER                   PIC X(09) VALUE
+				'*** CMD: '.  
+          02 SUB-CMD                  PIC X(2) VALUE SPACES.
+	  02 FILLER                   PIC X(3) VALUE SPACES.
+	  02 CMD-CNT-OUT              PIC 9(6).
+
+       01 TOTAL-2.
+	  02 FILLER                   PIC X(18) VALUE     
+	                        'ARMY WIDE TOTALS: '.
+	  02 TOT-CNT-OUT              PIC 9(6).            
+
+       COPY CPMF9801.
+      /
+      ***********************************************************
+       01  ZMO01-RDR-X-HEADER.
+	   05 FILLER                   PIC X(16) VALUE SPACES.   
+	   05 ZMO01-RDR-X-RCD.
+	      10 ZMO01-RDR-X-HDR-ID    PIC X      VALUE 'X'.
+	      10 ZMO01-RDR-X-HDR-PCN   PIC X(6)   VALUE SPACES.
+           05 FILLER                   PIC X(126) VALUE SPACES.  
+       
+       01  ZMO01-BNR-ID                PIC X(12)  VALUE
+	      'XXXXXXXXXXXX'.
+
+       01  ZMO01-BNR-PRINT-LINE.
+	   05 ZMO01-BNR-PRT-CC         PIC X      VALUE SPACES.
+           05 ZMO01-BNR-PRT-RCD        PIC X(132) VALUE SPACES.
+      *********************************************************************
+       
+       PROCEDURE DIVISION.
+         	
+       MAIN-PROGRAM.
+        
+           PERFORM 100-INITIALIZE-RTN THRU 100-INITIALIZE-RTN-EXIT.
+           PERFORM 200-OPEN-RTN THRU 200-OPEN-RTN-EXIT.
+       	   PERFORM 300-HEADER-REPORT-RTN THRU 300-HEADER-REPORT-RTN-EXIT.
+           PERFORM 400-READ-CPMF-RTN THRU 400-READ-CPMF-RTN-EXIT
+                            UNTIL EOF-SW = 'Y'.
+	   PERFORM 650-CMD-TOT-RTN THRU 650-CMD-TOT-RTN-EXIT.
+   	   PERFORM 700-CLOSE-RTN THRU 700-CLOSE-RTN-EXIT.
+       
+
+            
+       100-INITIALIZE-RTN.
+	   OPEN INPUT CONTROL-FILE.
+	   READ CONTROL-FILE AT END
+	       DISPLAY 'BAD CONTROL-CARD'
+	       GOBACK.
+           MOVE CTL-AS-OF-DATE TO AS-OF-DATE.
+           MOVE FUNCTION CURRENT-DATE TO SYS-DATE1.
+	   MOVE SYS-DATE1(1:4)        TO YYYY-FD.
+	   MOVE SYS-DATE1(5:6)        TO MM-FD.
+	   MOVE SYS-DATE1(7:8)        TO DD-FD.
+	   MOVE FORMAT-SYS-DATE TO SYSTEM-DATE.
+	   CLOSE CONTROL-FILE.
+       100-INITIALIZE-RTN-EXIT.
+			 EXIT.
+
+       
+       200-OPEN-RTN.
+           OPEN INPUT CPMF-FILE
+	       OUTPUT PRINT-FILE.
+           MOVE 'N' TO EOF-SW.
+
+           MOVE 'ZMA2BB1' TO ZMO01-RDR-X-HDR-PCN.
+	   WRITE PRINT-RECORD FROM ZMO01-RDR-X-HEADER.
+	   PERFORM SETUP-ZMO01-BNR-RDR.
+       200-OPEN-RTN-EXIT.       
+		    EXIT.
+
+
+
+       400-READ-CPMF-RTN.
+           READ CPMF-FILE INTO CPMF-RECORD
+	      AT END
+	      	MOVE 'Y' TO EOF-SW
+		IF EOF-SW = 'Y'
+		   DISPLAY 'MOB POSITION RECORDS READ   '  MOB-POS-CTR
+		   DISPLAY 'CPMF FILTERED RECORDS READ ' CPMF-CNT-2
+		   DISPLAY 'CPMF ALL RECORDS READ  '   CPMF-CNT-AR       
+		   DISPLAY 'CPMF AR RECORDS READ  '   CPMF-CNT-AR-2
+		   DISPLAY 'TOTAL RECORDS WRITTEN  '    TOT-CNT
+		   PERFORM 550-CMD-BREAK-RTN
+		   PERFORM 650-CMD-TOT-RTN
+		   PERFORM 700-CLOSE-RTN
+                ELSE
+		   NEXT SENTENCE
+                END-IF.
+
+              ADD 1 TO CPMF-CNT-AR.
+
+          IF CPMF-AGY-CD = 'AR'
+	      NEXT SENTENCE                    
+          ELSE
+	      PERFORM 400-READ-CPMF-RTN
+          END-IF.
+	      ADD 1 TO CPMF-CNT-AR-2.   
+
+              IF CPMF-MOB-POS = 2  AND CPMF-MOB-EMP = 5
+                 ADD 1 TO MOB-POS-CTR
+                 NEXT SENTENCE
+	      ELSE
+	       	 PERFORM 400-READ-CPMF-RTN
+              END-IF.
+
+      	   ADD 1 TO CPMF-CNT.
+           MOVE CPMF-AGY-SUB TO HOLD-AGY-CMD.
+	   MOVE CPMF-MOB-EMP TO HOLD-MOB-EMP.
+           MOVE CPMF-MOB-POS TO HOLD-MOB-POS.
+	    
+           IF HOLD-CMD NOT = TEST-CMD THEN
+	       PERFORM 550-CMD-BREAK-RTN
+           ELSE
+	       PERFORM 500-WRTE-REPRT-RTN
+           END-IF.
+                 
+       400-READ-CPMF-RTN-EXIT.
+                         EXIT.
+                                         
+                            
+       450-COMP-RTN.
+       	   IF HOLD-CMD = TEST-CMD
+	      PERFORM 500-WRTE-REPRT-RTN
+           END-IF.
+       450-COMP-RTN-EXIT.
+		    EXIT.
+
+       500-WRTE-REPRT-RTN.
+	      IF LINE-CNT > 49
+		  PERFORM 300-HEADER-REPORT-RTN
+		  MOVE ZEROS TO LINE-CNT
+              ELSE
+		NEXT SENTENCE. 
+
+              ADD 1 TO CPMF-CNT-2.
+
+              MOVE HOLD-CMD TO D-CMD.
+	      MOVE HOLD-MOB-EMP TO D-MOB-EMP.
+	      MOVE HOLD-MOB-POS TO D-MOB-POS. 
+
+	      WRITE PRINT-RECORD FROM DETAIL-LINE
+	            AFTER ADVANCING 1.
+              ADD 1 TO LINE-CNT.
+	      ADD 1 TO CMD-CNT.
+	      ADD 1 TO TOT-CNT.
+             PERFORM 400-READ-CPMF-RTN THRU 400-READ-CPMF-RTN-EXIT.
+
+       500-WRTE-REPRT-RTN-EXIT.
+                            EXIT.
+    
+	   
+       550-CMD-BREAK-RTN.
+	   IF CPMF-CNT NOT = 1 
+	      MOVE HOLD-CMD TO TEST-CMD
+              MOVE CMD-CNT TO CMD-CNT-OUT
+	      MOVE D-CMD TO SUB-CMD
+	      WRITE PRINT-RECORD FROM TOTAL-1
+                  AFTER ADVANCING 1
+              MOVE ZEROS TO CMD-CNT
+	      MOVE ZEROS TO CMD-CNT-OUT
+	   ELSE
+	      MOVE HOLD-CMD TO TEST-CMD 
+              MOVE ZEROS TO CMD-CNT
+	      MOVE ZEROS TO CMD-CNT-OUT
+              GO TO  450-COMP-RTN
+           END-IF.
+	     
+       550-CMD-BREAK-RTN-EXIT.
+			 EXIT.
+
+
+
+
+       300-HEADER-REPORT-RTN.
+	     ADD 1 TO PAGE-CTR.
+	     MOVE PAGE-CTR TO PAGE-NUM.
+	     WRITE PRINT-RECORD FROM BLANK-LINE AFTER 2.
+	     WRITE PRINT-RECORD FROM HEADER-1 AFTER PAGE.
+	     WRITE PRINT-RECORD FROM HEADER-2 AFTER 1.
+	     WRITE PRINT-RECORD FROM HEADER-3 AFTER 1.
+	     WRITE PRINT-RECORD FROM HEADER-4 AFTER 1.
+	     WRITE PRINT-RECORD FROM HEADER-5 AFTER 2.
+	     ADD 5 TO LINE-CNT.
+       300-HEADER-REPORT-RTN-EXIT.
+			     EXIT.
+
+
+
+       650-CMD-TOT-RTN.
+             
+                MOVE TOT-CNT TO TOT-CNT-OUT.  
+                WRITE PRINT-RECORD FROM TOTAL-2 AFTER 2.
+
+       650-CMD-TOT-RTN-EXIT.
+                       EXIT.
+
+
+       700-CLOSE-RTN.
+             CLOSE CPMF-FILE
+		   PRINT-FILE. 
+                   STOP RUN.
+       700-CLOSE-RTN-EXIT.
+                     EXIT.
+
+
+       SETUP-ZMO01-BNR-RDR.
+	    MOVE SPACES TO ZMO01-BNR-PRINT-LINE.
+	    MOVE '*' TO ZMO01-BNR-PRT-CC.
+	    PERFORM WRT-ZMO01-BNR-RDR
+			 UNTIL ZMO01-BNR-PRT-CC EQUAL '*'.
+        
+       WRT-ZMO01-BNR-RDR.
+            IF ZMO01-BNR-PRT-CC NOT EQUAL '*'
+	      IF ZMO01-BNR-PRT-CC EQUAL SPACES
+		 WRITE PRINT-RECORD FROM ZMO01-BNR-PRT-RCD AFTER 1
+              ELSE
+		IF ZMO01-BNR-PRT-CC EQUAL '0'
+	           WRITE PRINT-RECORD FROM ZMO01-BNR-PRT-RCD AFTER 2  
+                ELSE
+                  IF ZMO01-BNR-PRT-CC EQUAL '_'
+		     WRITE PRINT-RECORD FROM ZMO01-BNR-PRT-RCD AFTER 3
+                  ELSE
+		    IF ZMO01-BNR-PRT-CC EQUAL '+'
+		       WRITE PRINT-RECORD FROM ZMO01-BNR-PRT-RCD
+		       AFTER 0   
+                    ELSE
+		       WRITE PRINT-RECORD FROM ZMO01-BNR-PRT-RCD
+			  AFTER PAGE.
+
